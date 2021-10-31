@@ -1,0 +1,4 @@
+deposittype;drate;duration; minbalance ;replenishable;withdrawal
+max;7,5;36;5 000,00;yes;no
+optimum;6;18;1 000,00;yes;yes
+saving;5,5;12;500,00;no;no

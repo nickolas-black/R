@@ -1,0 +1,416 @@
+---
+title: "Итоговая"
+author: "Николай Колеганов"
+date: "30 10 2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Анализ данных по продажам банковских продуктов
+
+## Дан набор датасетов по продажам банковских продуктов (депозиты): 
+##### bank-full.csv - основной датасет, содержит данные о продажах банковских продуктов (депозитов) клиентам на основе телефонных звонков.
+### Атрибутивный состав датасета: 
+#### age (numeric) - возраст клиента 
+#### job : (categorical: “admin.”, “unknown”, “unemployed”, “management”, “housemaid”, “entrepreneur”, “student”, “blue-collar”, “self-employed”, “retired”, “technician”, “services”) - род занятий клиента 
+#### marital : (categorical: “married”, “divorced”, “single”) - семейной положение клиента 
+#### education (categorical: “unknown”,“secondary”,“primary”,“tertiary”) – образование
+#### default: (binary: “yes”,“no”) - наличие кредита с просроченной задолженностью 
+#### balance: (numeric) - среднемесячный баланс на счетах клиента (в евро)
+#### housing: (binary: “yes”,“no”) - наличие ипотеки 
+#### loan: (binary: “yes”,“no”) - наличие потребительского кредита 
+#### salary: (binary: “yes”,“no”) - наличие зарплатного проекта в банке у клиента 
+#### contact: (categorical: “unknown”, “telephone”, “cellular”) - тип коммуникации с клиентом 
+#### day: (numeric) - порядковый номер дня в месяце, когда была последняя коммуникация 
+#### month: (categorical: “jan”, “feb”, “mar”, …, “nov”, “dec”) - месяц, когда была последняя коммуникация 
+#### duration:(numeric) - длительность последней коммуникации в секундах
+#### campaign: (numeric, includes last contact) - количество контактов с клиентом в рамках данной рекламной кампании 
+#### pdays: (numeric, -1 means client was not previously contacted) - число дней с прошлой коммуникации 
+#### previous: (numeric) - число предыдущих коммуникаций с клиентом 
+#### poutcome: (categorical: “unknown”, “other”, “failure”, “success”) - результат прошлых маркетинговых кампаний 
+#### y: (binary: “yes”,“no”) - взял ли клиент депозит по итогу коммуникации (выходная переменная для классификации) 
+#### deposittype (categorical: “max”, “optimum”, “saving”) - продукт, который выдан клиенту в итоге маркетинговой акции (тип депозита) 
+
+#### bank-test.csv - тестовый датасет. 
+Нужен только в случае, если в дипломной работе решается задача классификации. Имеет структуру, аналогичную датасету bank-full.csv 
+
+#### deposits-tariff.csv - датасет, содержащий условия по депозитам, выданным клиентам в результате маркетинговой кампании. 
+
+### Атрибутивный состав датасета: 
+
+#### deposittype (categorical: “max”, “optimum”, “saving”) - продукт, который выдан клиенту в итоге маркетинговой акции (тип депозита) 
+#### drate: (numeric) - ставка по депозиту в процентах годовых 
+#### duration: (numeric) - срок депозита в месяцах 
+#### minbalance: (numeric) - минимальный первоначальный взнос 
+#### replenishable: (binary: “yes”,“no”) - возможность пополнения депозита 
+#### withdrawal: (binary: “yes”,“no”) - возможность частичного снятия.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+library(readr)
+library(tidyr)
+library(stringr)
+library(outliers)
+library(dplyr)
+library(ggplot2)
+library(plotly)
+
+```
+
+## Загрузка данных
+
+```{r}
+bank_full <- read.csv("D:/данные/разработка/R/итоговая/Diploma datasets/bank-full.csv", header=TRUE,sep=";")
+usloviy <- read.csv("D:/данные/разработка/R/итоговая/Diploma datasets/deposits-tariff.csv",  header=TRUE,sep=";")
+test_bank <- read.csv("D:/данные/разработка/R/итоговая/Diploma datasets/bank-test.csv", header=TRUE,sep=";")
+```
+
+## Посмотрим названия колонок
+
+```{r}
+colnames(test_bank)
+colnames(usloviy)
+```
+
+# Очистка данных
+
+## для удобаства очистки переместим в clear_bank данные, чтоб неизменить изначальные данные в проуессе проверки
+
+```{r}
+clear_bank <- bank_full
+```
+
+## проверим какие классы содержатьсья в данных
+
+```{r}
+sapply(clear_bank, class)
+sapply(test_bank, class)
+```
+
+## проверим на пропуски данные
+
+```{r}
+sum(is.na(clear_bank))
+sum(is.null(clear_bank))
+```
+
+## как видно есть 5 пропусков, проверим в каком именно столбце они есть
+
+```{r}
+sum(is.na(clear_bank["age"]))
+sum(is.na(clear_bank["job"]))
+sum(is.na(clear_bank["marital"]))
+sum(is.na(clear_bank["education"]))
+sum(is.na(clear_bank["default"]))
+sum(is.na(clear_bank["balance"]))
+sum(is.na(clear_bank["housing"]))
+sum(is.na(clear_bank["loan"]))
+sum(is.na(clear_bank["salary"]))
+sum(is.na(clear_bank["contact"]))
+sum(is.na(clear_bank["day"]))
+sum(is.na(clear_bank["month"]))
+sum(is.na(clear_bank["duration"]))
+sum(is.na(clear_bank["campaign"]))
+sum(is.na(clear_bank["pdays"]))
+sum(is.na(clear_bank["previous"]))
+sum(is.na(clear_bank["poutcome"]))
+sum(is.na(clear_bank["y"]))
+sum(is.na(clear_bank["deposittype"]))
+sum(is.null(clear_bank))
+```
+## как видно пропуски только в age и составляет 5 из 45 211. 5 шт. это меньше 1 %, поэтому можно их просто убарть.
+
+```{r}
+clear_bank <- drop_na(clear_bank)
+
+sum(is.na(clear_bank))
+```
+
+## Посмотрим на получившиеся данные и посмотрим на описательную статистику используя функцию summary.
+
+```{r}
+summary(clear_bank)
+
+outlier(clear_bank$'age')
+```
+## видно что есть аномальное значение в age (-100), что мало вероятно, поэтому удалим его так как 100 лет, тоже мало вероятно, что это верно. Скорее всего это выброс и посмотрим какие еще есть "нетепичные" возраста
+
+```{r}
+View(clear_bank)
+```
+
+## визуально увидели еще два не типичных возраста -9 и -1, которые тоже удалим
+
+```{r}
+clear_bank <- clear_bank[-c(2059, 14639, 22284),]
+```
+
+## проверим еще раз описательную статистику
+
+```{r}
+summary(clear_bank)
+```
+
+## максимальный возраст 95 лет, конечно сомнительно, но возможно. допустим, что возможно.
+
+## получившиеся данные очищены. Теперь приступим к трансформированию и объединению данных с данными по маркетингу
+
+## объелинил через merge
+
+```{r}
+c <- merge(clear_bank, usloviy, by="deposittype")
+```
+
+## второй вариант через left_join
+
+```{r}
+itog <- left_join(clear_bank, usloviy, by = "deposittype")
+```
+
+## посмотрим на количество не взятых продуктов
+
+```{r}
+sum(is.na(itog))
+```
+
+```{r}
+itog_ob <- itog
+```
+
+## убирем пропуски
+
+```{r}
+itog <- drop_na(itog)
+
+sum(is.na(c))
+```
+
+## Посмотрим что получилось, какие колонки
+
+```{r}
+colnames(itog)
+```
+
+# Итого получилось, что взяли депозит 5288
+
+## Проведем визуальный анализ данных
+
+## Посмотрим сколько у нас больше выдано клиенту в итоге макретинга
+
+## разделил на 3 группы, чтоб если потребуется узнать отдельную информацию по определенной группе не потерять, но это не обязательно было делать
+
+```{r}
+max_vzjli <- filter(itog, deposittype == "max")
+optimal_vzjli <- filter(itog, deposittype == "optimum")
+saving_vzjli <- filter(itog, deposittype == "saving")
+```
+
+### посмотрим каких продуктов и сколько взяли
+
+```{r}
+obshee_max <- itog %>% group_by(deposittype) %>% summarise(sred_balanc = mean(balance), sred_vozrast = mean(age), kol = n())
+obshee_max
+```
+
+## видно, что больше взяли optimum 3146
+
+## Посмотрим как у нас проявляется ставка от возраста
+
+```{r}
+ggplot(data = itog, mapping = aes(x = age, y = drate, color = deposittype)) + geom_point()
+```
+
+## Корреляция между длительностью общения и возрастом
+
+```{r}
+ggplot(data = itog, mapping = aes(x = age, y = duration.x, color = deposittype)) + geom_point() +geom_smooth() + labs(x = "возраст", y = "длительность последней коммуникации в сек.", color =' продукт') + ggtitle("Корреляция между общением и возрастом, с указанием как был выбран продукт")
+```
+
+
+## Зависимость продукта от баланса
+
+
+```{r}
+ggplot(itog) + geom_point(mapping = aes(x = deposittype, y = balance, color = deposittype)) + ggtitle("Зависимость выбранного продукта от баланса")
+```
+
+```{r}
+ggplot(itog_ob) + geom_point(mapping = aes(x = deposittype, y = balance, color = deposittype)) + ggtitle("Общая зависимость выбранного продукта от баланса по продукту")
+```
+
+
+## Зависимости количество контакта от выбранного продукта
+```{r}
+ggplot(itog) + geom_line(mapping = aes(y = deposittype, x = campaign, color = deposittype)) + ggtitle("Количество контакта от выбранного продукта")
+```
+
+
+## Зависимости количество выбранных продуктов от клиентов с которыми ранее не было общения
+
+```{r}
+
+ggplot(itog) + geom_line(mapping = aes(x = deposittype, y = previous, color = deposittype)) + ggtitle("Количество выбранных продуктов от клиентов с которыми ранее не было общения")
+```
+
+
+## Построим гистограмму распределения клиентов по возрасту 
+```{r}
+ggplot(itog_ob, mapping = aes(x = age)) + geom_histogram(color = "white") + ggtitle("Все данные по возрасту")
+```
+
+
+```{r}
+ggplot(itog, mapping = aes(x = age)) + geom_histogram(color = "white") + ggtitle("Данные по возрасту, которые взяли")
+```
+
+
+
+## Построим гистограмму распределения длительности последней коммуникации в секундах
+
+
+```{r}
+ggplot(itog, mapping = aes(x = duration.x)) + geom_histogram(color = "white") + ggtitle("Взятые продукты и число длительности последней коммуникаци")
+```
+
+
+```{r}
+ggplot(itog_ob, mapping = aes(x = duration.x)) + geom_histogram(color = "white") + ggtitle("Общее число длительности последней коммуникаци")
+```
+
+
+
+## Построим гистограмму распределения когда в месяце была последняя коммуникация 
+
+```{r}
+ggplot(itog_ob, mapping = aes(x = day)) + geom_histogram(color = "white") + ggtitle("Общие данные")
+```
+
+```{r}
+ggplot(itog, mapping = aes(x = day)) + geom_histogram(color = "white") + ggtitle("Только взятые продукты")
+```
+
+
+## Видно, что в основном берут проукды в середине месяца
+
+# Посмотрим как у нас влияет маркетинг на взятые продукты
+
+## Посмотрим на количество контактов с клиентом в рамках данной рекламной кампании 
+
+```{r}
+ggplot(itog_ob, mapping = aes(x = campaign)) + geom_histogram(color = "white") + ggtitle("Общие данные")
+```
+
+
+```{r}
+
+ggplot(itog, mapping = aes(x = campaign)) + geom_histogram(color = "white") + ggtitle("Только взятые продукты")
+```
+
+```{r}
+ggplot(filter(itog, marital %in% c("married")), mapping = aes(x = campaign)) + geom_histogram(color = "white") + ggtitle("Только взятые продукты с учетом семейного положения(женаты)")
+```
+
+
+
+```{r}
+ggplot(filter(itog, marital %in% c("divorced")), mapping = aes(x = campaign)) + geom_histogram(color = "white") + ggtitle("Только взятые продукты с учетом семейного положения(в разводе)")
+```
+
+
+```{r}
+ggplot(filter(itog, marital %in% c("single")), mapping = aes(x = campaign)) + geom_histogram(color = "white") + ggtitle("Только взятые продукты с учетом семейного положения(холосты)")
+```
+
+
+
+
+
+##Количество контактов в среднем
+
+```{r}
+ggplot(itog_ob %>% group_by(y) %>% summarise(sred_kontakt = mean(campaign))) + geom_col(mapping = aes(x = y, y = sred_kontakt, fill = y)) + ggtitle("Количество контактов с клиентом в рамках данной рекламной кампании в среднем")
+```
+## Как видно берут продукт после 2 связи с клиентом
+
+
+```{r}
+ggplot(itog_ob %>% group_by(deposittype) %>% summarise(sred_kontakt = mean(campaign))) + geom_col(mapping = aes(x = deposittype, y = sred_kontakt, fill = deposittype)) + ggtitle("Количество контактов с клиентом в рамках данной рекламной кампании в среднем по продуктам")
+```
+
+## Как видно в основном берут по результатам маркетинговой компании продукт saving
+
+
+```{r}
+kontakt <- itog_ob %>% group_by(deposittype) %>% summarise(sred_kontakt = mean(campaign))
+
+kontakt
+```
+
+
+## Количество успешных контактов
+
+```{r}
+ggplot(itog_ob) + geom_col(mapping = aes(x = y, y = campaign/sum(campaign) * 100)) + ggtitle("Проценты приведших к успеху")
+```
+
+## Более 10 % приводят к успеху
+
+```{r}
+uspeh <- itog_ob %>% group_by(y) %>% summarise(uspeh_proc = sum(campaign))
+uspeh
+```
+
+```{r}
+ggplot(itog_ob %>% group_by(y) %>% summarise(sred_dlit = mean(duration.x))) + geom_col(mapping = aes(x = y, y = sred_dlit, fill = y)) + ggtitle("Средняя длительность успешной и неуспешной коммуникации")
+```
+
+## Чем дольше идет ообщение, тем больше вероятность того, что будет взят продукт
+
+
+## число дней с прошлой коммуникации 
+
+```{r}
+ggplot(itog, mapping = aes(x = pdays)) + geom_histogram(color = "white")
+```
+
+```{r}
+ggplot(itog, mapping = aes(x = previous)) + geom_histogram(color = "white")
+```
+
+
+
+## большое количесто -1, что означает, что ранее с клиентом не связывалис
+
+## Портрет клиента
+
+```{r}
+ggplot(itog) + geom_bar(mapping = aes(x = job, fill=y), position = 'dodge') + ggtitle("Количество видов занятости, взявщих продукт")
+```
+
+
+
+```{r}
+ggplot(itog) + geom_bar(mapping = aes(x = job, fill=deposittype), position = 'dodge') + ggtitle("Количество видов занятости, взявщих по видам продукт")
+```
+
+
+```{r}
+ggplot(itog) + geom_bar(mapping = aes(x = marital, fill=y), position = 'dodge') + ggtitle("Количество семейного состояния, взявщих продукт")  
+```
+
+
+```{r}
+ggplot(itog) + geom_bar(mapping = aes(x = marital, fill=deposittype), position = 'dodge') + ggtitle("Количество семейного состояния, взявщих по видам продукт")  
+
+```
+
+```{r}
+ggplot(itog) + geom_bar(mapping = aes(x = education, fill=deposittype), position = 'dodge') + ggtitle("Количество образования, взявщих во видам продукт")
+
+```
+
+## Портрет клиента, который в основном берет продукт. Это менеджер, с secondary образованием, женатые и в среднем возрасте (около 30). Ориентируются на продукт optimum и max.
+
